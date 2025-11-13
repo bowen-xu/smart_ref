@@ -3,6 +3,8 @@
 #include "smart_ref.hpp"
 #include <chrono>
 #include <set>
+#include <unordered_map>
+#include <vector>
 
 using namespace smart_ref;
 
@@ -12,13 +14,11 @@ struct Graph
 {
     std::set<weak_ref<Node, Graph>> nodes;
 
-    void hold_ref(const weak_ref<Node, Graph> &x) { this->nodes.insert(x); }
-    void unhold_ref(const weak_ref<Node, Graph> &w) { this->nodes.erase(w); }
-
+    static void hold_ref(void *self, const weak_ref<Node, Graph> &x) { static_cast<Graph *>(self)->nodes.insert(x); }
+    static void unhold_ref(void *self, const weak_ref<Node, Graph> &w) { static_cast<Graph *>(self)->nodes.erase(w); }
 };
 
-
-struct Node : public enable_shared_ref_from_this<Node, Graph>, enable_ref_holder<Graph>
+struct Node : public enable_shared_ref_from_this<Node, Graph>, enable_ref_holder
 {
     inline static int _id_counter = 0;
     int id;
@@ -32,7 +32,7 @@ void performance()
 
     {
         uint64_t sum = 0;
-        std::vector<uint64_t*> data;
+        std::vector<uint64_t *> data;
         data.reserve(N);
         auto start = std::chrono::high_resolution_clock::now();
         for (uint64_t i = 0; i < N; ++i)
@@ -98,6 +98,7 @@ int main()
     auto g = Graph();
     auto x = shared_ref<Node, Graph>(new Node(13));
     x.set_holder(&g);
+
     auto x2 = weak_ref(x);
     x = nullptr;
     x2 = nullptr;
@@ -105,6 +106,7 @@ int main()
     fmt::print("Size of SharedRef<int>: {}; size of std::shared_ptr<int>: {}\n", sizeof(shared_ref<int>),
                sizeof(std::shared_ptr<int>));
     auto a = std::shared_ptr<int>(new int(42));
+
     fmt::print("strong count: {}\n", a.use_count());
     fmt::print("Hello, C++ Concept Graph!\n");
 

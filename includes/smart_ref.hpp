@@ -7,28 +7,25 @@
 namespace smart_ref
 {
 
-    template <typename T, typename HolderT = nullptr_t>
+    template <typename T, typename HolderPolicy = nullptr_t>
     struct weak_ref;
 
-    template <typename T, typename HolderT = nullptr_t>
+    template <typename T, typename HolderPolicy = nullptr_t>
     struct enable_shared_ref_from_this;
-    template <typename HolderT>
     struct enable_ref_holder;
 
     namespace _
     {
-        template <typename HolderT>
         struct holder_base
         {
-            HolderT *holder = nullptr;
+            void *holder = nullptr;
         };
         struct empty_base
         {
         };
 
-        template <typename T, typename HolderT = nullptr_t>
-        struct ref_block
-            : std::conditional_t<std::is_base_of_v<enable_ref_holder<HolderT>, T>, holder_base<HolderT>, empty_base>
+        template <typename T>
+        struct ref_block : std::conditional_t<std::is_base_of_v<enable_ref_holder, T>, holder_base, empty_base>
         {
             T *ptr = nullptr;
             uint32_t strong = 0;
@@ -48,19 +45,19 @@ namespace smart_ref
         };
     } // namespace _
 
-    template <typename T, typename HolderT = nullptr_t>
+    template <typename T, typename HolderPolicy = nullptr_t>
     struct shared_ref
     {
     public:
         T *ptr;
-        _::ref_block<T, HolderT> *handler;
+        _::ref_block<T> *handler;
 
         shared_ref() : handler(nullptr), ptr(nullptr) {}
         shared_ref(nullptr_t) : handler(nullptr), ptr(nullptr) {}
 
         shared_ref(T *p)
         {
-            handler = new _::ref_block<T, HolderT>();
+            handler = new _::ref_block<T>();
             handler->strong = 1;
             handler->ptr = p;
             ptr = p;
@@ -73,23 +70,41 @@ namespace smart_ref
 
     private:
         shared_ref(T *p, _::ref_block<T> *h) : ptr(p), handler(h) {}
+        shared_ref(_::ref_block<T> *h) : handler(h)
+        {
+            if (h)
+            {
+                ptr = h->ptr;
+                h->strong++;
+            }
+            else
+                ptr = nullptr;
+        }
 
     public:
-        shared_ref(const shared_ref<T> &other) : shared_ref() { this->_move_shared(other); }
-        shared_ref(shared_ref<T> &&other) : shared_ref() { this->_move_shared(other); }
+        shared_ref(const shared_ref &other) : shared_ref() { this->_move_shared(other); }
+        shared_ref(shared_ref &&other) : shared_ref() { this->_move_shared(other); }
 
         ~shared_ref()
         {
             if (handler)
             {
                 handler->strong--;
-                if (handler->strong == 0 && handler->weak == 0)
-                    delete handler;
+                if (handler->strong == 0)
+                {
+                    if (handler->weak == 0)
+                        delete handler;
+                    else
+                    {
+                        delete handler->ptr;
+                        handler->ptr = nullptr;
+                    }
+                }
             }
         }
 
     private:
-        void _move_shared(const shared_ref<T, HolderT> &other)
+        void _move_shared(const shared_ref<T, HolderPolicy> &other)
         {
             if (this->handler)
             {
@@ -125,7 +140,7 @@ namespace smart_ref
             return *this;
         }
 
-        static shared_ref revive(T *p, const weak_ref<T, HolderT> &other)
+        static shared_ref revive(T *p, const weak_ref<T, HolderPolicy> &other)
         {
             if (other.handler == nullptr || other.handler->strong > 0)
                 throw std::runtime_error("bad weak reference");
@@ -147,13 +162,17 @@ namespace smart_ref
             ptr = nullptr;
         }
 
-        void set_holder(HolderT *holder)
+        void set_holder(void *holder)
         {
-            if constexpr (std::is_base_of_v<enable_ref_holder<HolderT>, T>)
+            if constexpr (std::is_base_of_v<enable_ref_holder, T> && !std::is_same_v<HolderPolicy, nullptr_t>)
             {
                 handler->holder = holder;
                 if (holder)
-                    holder->hold_ref(*this);
+                    HolderPolicy::hold_ref(holder, *this);
+            }
+            else
+            {
+                static_assert(false, "T must inherit from enable_ref_holder to use set_holder");
             }
         }
 
@@ -161,51 +180,34 @@ namespace smart_ref
         T *operator->() const { return ptr; }
 
         T &operator*() const { return *ptr; }
+
+        operator bool() const { return ptr != nullptr; }
+
+        friend class weak_ref<T, HolderPolicy>;
     };
 
-    // 1. 检测 unhold(Container&, weak_ref<T>&)
-    template <class, class, class = nullptr_t>
-    struct has_unhold : std::false_type
-    {
-    };
-
-    template <class C, class R>
-    struct has_unhold<C, R, std::void_t<decltype(unhold(std::declval<C &>(), std::declval<R &>()))>> : std::true_type
-    {
-    };
-
-    // 2. 包装调用
-    template <class C, class R>
-    void call_unhold_if_exists(C &c, R &r)
-    {
-        if constexpr (has_unhold<C, R>::value)
-        {
-            unhold(c, r); // 存在就调用
-        }
-    }
-
-    template <typename T, typename HolderT>
+    template <typename T, typename HolderPolicy>
     struct weak_ref
     {
-        _::ref_block<T, HolderT> *handler = nullptr;
+        _::ref_block<T> *handler = nullptr;
 
         weak_ref() : handler(nullptr) {}
         weak_ref(nullptr_t) : handler(nullptr) {}
-        weak_ref(const shared_ref<T, HolderT> &other) { this->_move_ref(other); }
-        weak_ref(const weak_ref<T, HolderT> &other) { this->_move_ref(other); }
-        weak_ref(weak_ref<T, HolderT> &&other) { this->_move_ref(other); }
+        weak_ref(const shared_ref<T, HolderPolicy> &other) { this->_move_ref(other); }
+        weak_ref(const weak_ref<T, HolderPolicy> &other) { this->_move_ref(other); }
+        weak_ref(weak_ref<T, HolderPolicy> &&other) { this->_move_ref(other); }
 
-        weak_ref &operator=(const shared_ref<T, HolderT> &other)
+        weak_ref &operator=(const shared_ref<T, HolderPolicy> &other)
         {
             this->_move_ref(other);
             return *this;
         }
-        weak_ref &operator=(const weak_ref<T, HolderT> &other)
+        weak_ref &operator=(const weak_ref<T, HolderPolicy> &other)
         {
             this->_move_ref(other);
             return *this;
         }
-        weak_ref &operator=(weak_ref<T, HolderT> &&other)
+        weak_ref &operator=(weak_ref<T, HolderPolicy> &&other)
         {
             this->_move_ref(other);
             return *this;
@@ -218,7 +220,10 @@ namespace smart_ref
             return *this;
         }
 
-        ~weak_ref() { _destroy_ref(); }
+        ~weak_ref() 
+        {
+            _destroy_ref(); 
+        }
 
         void _destroy_ref()
         {
@@ -231,48 +236,55 @@ namespace smart_ref
                     return;
                 }
 
-                if constexpr (std::is_base_of_v<enable_ref_holder<HolderT>, T>)
+                if constexpr (std::is_base_of_v<enable_ref_holder, T> && !std::is_same_v<HolderPolicy, nullptr_t>)
                 {
                     if (handler->holder)
                     {
-                        // call_unhold_if_exists(*static_cast<HolderT *>(handler->holder), *this);
-                        if (this->handler->weak <= 1 && this->handler->strong == 0)
-                            handler->holder->unhold_ref(*this);
+                        if (this->handler->weak == 1 && this->handler->strong == 0)
+                        {
+                            auto holder = handler->holder;
+                            handler->holder = nullptr;
+                            HolderPolicy::unhold_ref(holder, *this);
+                        }
                     }
                 }
             }
         }
 
-        void set_holder(HolderT *holder)
+        void set_holder(HolderPolicy *holder)
         {
-            if constexpr (std::is_base_of_v<enable_ref_holder<HolderT>, T>)
+            if constexpr (std::is_base_of_v<enable_ref_holder, T> && !std::is_same_v<HolderPolicy, nullptr_t>)
             {
                 if (handler)
                 {
                     handler->holder = holder;
                     if (holder)
-                        holder->hold_ref(*this);
+                        HolderPolicy::hold_ref(holder, *this);
                 }
+            }
+            else
+            {
+                static_assert(false, "T must inherit from enable_ref_holder to use set_holder");
             }
         }
 
-        T *lock() const
+        shared_ref<T, HolderPolicy> lock() const
         {
             if (handler == nullptr)
                 return nullptr;
-            return handler->ptr;
+            return shared_ref<T, HolderPolicy>(handler);
         }
 
-        bool operator<(const weak_ref<T, HolderT> &other) const { return handler < other.handler; }
+        bool operator<(const weak_ref<T, HolderPolicy> &other) const { return handler < other.handler; }
 
     private:
-        void _move_ref(const weak_ref<T, HolderT> &other)
+        void _move_ref(const weak_ref<T, HolderPolicy> &other)
         {
             handler = other.handler;
             if (handler)
                 handler->weak++;
         }
-        void _move_ref(const shared_ref<T, HolderT> &other)
+        void _move_ref(const shared_ref<T, HolderPolicy> &other)
         {
             handler = other.handler;
             if (handler)
@@ -280,15 +292,15 @@ namespace smart_ref
         }
     };
 
-    template <typename T, typename HolderT>
+    template <typename T, typename HolderPolicy>
     struct enable_shared_ref_from_this
     {
     private:
-        weak_ref<T, HolderT> _weak_self;
-        friend struct shared_ref<T, HolderT>;
+        weak_ref<T, HolderPolicy> _weak_self;
+        friend struct shared_ref<T, HolderPolicy>;
 
     public:
-        shared_ref<T, HolderT> shared_from_this()
+        shared_ref<T, HolderPolicy> shared_from_this()
         {
             if (auto p = _weak_self.lock())
             {
@@ -313,11 +325,8 @@ namespace smart_ref
         }
     };
 
-
-    template <typename HolderT>
     struct enable_ref_holder
     {
-        HolderT *holder = nullptr;
     };
 
 } // namespace smart_ref
