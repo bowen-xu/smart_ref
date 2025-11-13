@@ -1,0 +1,11 @@
+UseTab: Never # do not use tabs, but use spaces instead
+IndentWidth: 4 # indent with 4 spaces
+AccessModifierOffset: -4 # access modifier is at the same level as the class
+BreakBeforeBraces: Allman # put braces on a new line
+AllowShortIfStatementsOnASingleLine: false # do not allow if statements on a single line
+IndentCaseLabels: false # do not indent case labels
+ColumnLimit: 120 # limit the length of a line
+SortIncludes: false # do not sort #include directives
+NamespaceIndentation: All # Indent all code inside namespaces
+AlwaysBreakTemplateDeclarations: Yes # Always start a new line after template declarations.
+PenaltyReturnTypeOnItsOwnLine: 0 # Easier to start a new line after ReturnType

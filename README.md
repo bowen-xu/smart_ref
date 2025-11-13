@@ -1,2 +1,246 @@
-# smart_ref
-A lightweight C++ smart reference system that supports reviving shared ownership from weak references and provides holder-aware lifecycle synchronization for graph-like object management.
+# `smart_ref` — A Flexible C++ Smart Reference Library with Holder-Aware Lifecycle Sync and Python Binding Support
+
+`smart_ref` is a lightweight yet powerful C++ smart reference library designed for advanced object lifecycle scenarios such as graph structures, intrusive container tracking, and Python/C++ interoperability via PyBind11.
+
+It extends the concept of `std::shared_ptr` / `std::weak_ptr` with several unique capabilities:
+- Safe *revival* of `shared_ref` from `weak_ref` without invalidating the weak reference.
+- Optional **holder-aware lifecycle synchronization**, allowing containers (e.g., graphs) to automatically track and clean up nodes when objects are destroyed.
+- Compact, customizable reference-counting system with minimal overhead.
+- Full support for **PyBind11** as a custom holder type (`PYBIND11_DECLARE_HOLDER_TYPE`).
+
+---
+
+## 🔥 Key Features
+
+### ✔ 1. Weak-to-Shared Revival
+Unlike `std::weak_ptr`, `smart_ref::weak_ref` can **safely recreate a new `shared_ref`** even after the original strong owner is gone:
+
+```cpp
+auto w = weak_ref(obj);
+auto revived = shared_ref::revive(new T(...), w);
+```
+
+The original weak reference **remains valid** and can continue to lock.
+
+---
+
+### ✔ 2. Holder-Aware Lifecycle Tracking
+
+Objects can optionally declare a *HolderType* (such as a graph or container) that maintains weak references.
+
+When:
+
+* `strong == 0`
+* and only the holder-owned weak reference remains
+
+the holder is automatically notified to remove it.
+
+This enables powerful patterns such as **automatic graph node cleanup**:
+
+```cpp
+struct Graph {
+    std::set<weak_ref<Node, Graph>> nodes;
+    void hold_ref(const weak_ref<Node, Graph>& r) { nodes.insert(r); }
+    void unhold_ref(const weak_ref<Node, Graph>& r) { nodes.erase(r); }
+};
+```
+
+This makes `smart_ref` ideal for ECS, scene graphs, dependency graphs, or tree-like structures.
+
+---
+
+### ✔ 3. C++11-compatible, Header Only
+
+No runtime dependencies beyond the STL.
+Zero-cost abstractions where possible.
+
+---
+
+### ✔ 4. PyBind11 Integration
+
+`smart_ref` integrates seamlessly with PyBind11 via:
+
+```cpp
+PYBIND11_DECLARE_HOLDER_TYPE(T, smart_ref::shared_ref<T>);
+```
+
+Allowing Python to hold and manage `shared_ref` objects like native classes:
+
+```cpp
+py::class_<Foo, pFoo>(m, "Foo")
+    .def(py::init<int>())
+    .def("greet", &Foo::greet);
+```
+
+Python code:
+
+```python
+import foo
+
+x = foo.create_foo(42)
+x.greet()   # Hello from Foo! Value: 42
+```
+
+Your C++ objects now participate in Python ref-counting transparently.
+
+---
+
+## 🚀 Quick Example
+
+### Basic Usage
+
+```cpp
+using namespace smart_ref;
+
+auto ref = shared_ref<int>(new int(10));
+weak_ref<int> w = ref;
+
+ref.reset();     // strong = 0, but weak still valid
+if (w.lock()) {
+    // still returns nullptr because ptr was destroyed
+}
+```
+
+### Reviving from Weak Reference
+
+```cpp
+weak_ref<int> w = ref;
+ref = nullptr;
+
+auto revived = shared_ref<int>::revive(new int(30), w);
+```
+
+Now:
+
+* `revived` owns the new integer
+* `w` points to the same control block and can still lock
+* graph holders are kept consistent
+
+---
+
+## 🧩 Example: Graph Node Tracking
+
+```cpp
+struct Node : enable_shared_ref_from_this<Node, Graph>,
+              enable_ref_holder<Graph> {
+    int value;
+    Node(int v) : value(v) {}
+};
+
+Graph g;
+auto n = shared_ref<Node, Graph>(new Node(10));
+n.set_holder(&g);  // Graph tracks the weak_ref automatically
+```
+
+When `n` and its weak refs are cleared outside the graph:
+
+* Graph automatically removes the node from `nodes`
+* preventing stale or dangling weak references
+
+---
+
+## 🧱 Architecture Overview
+
+```
+shared_ref<T, HolderT>
+ ├── owns T*
+ ├── strong reference count
+ └── optional HolderT* (e.g., Graph)
+
+weak_ref<T, HolderT>
+ ├── non-owning reference
+ ├── weak reference count
+ └── can revive a new shared_ref
+
+ref_block<T>
+ ├── holds T*
+ ├── strong/weak counts
+ └── optional holder link
+```
+
+The reference block is compact and optimized for scenarios where both C++ and Python may refer to the same object.
+
+---
+
+## 📦 PyBind11 Integration Example
+
+```cpp
+PYBIND11_MODULE(foo, m) {
+    py::class_<Foo, pFoo>(m, "Foo")
+        .def(py::init<int>())
+        .def("greet", &Foo::greet);
+
+    m.def("create_foo", [](int v) { return pFoo(new Foo(v)); });
+}
+```
+
+Python:
+
+```python
+import foo
+f = foo.create_foo(99)
+f.greet()
+```
+
+---
+
+## 📊 Performance
+
+An included benchmark compares:
+
+* raw primitives
+* `smart_ref::shared_ref`
+* `std::shared_ptr`
+
+Results show competitive performance, with customizability advantages for graph-like structures.
+
+```plaintext
+Primitive time: 14.635 ms, sum: 124997500000
+smart_ref::shared_ref time: 197.916 ms, sum: 124997500000
+std::shared_ptr time: 210.536 ms, sum: 124997500000
+```
+(tested on MacOS (CPU: M1), with the release mode)
+
+---
+
+## 🛠 Build & Usage
+
+### Requirements
+
+* Any modern C++ compiler (C++17 recommended)
+* Optional: PyBind11 (for Python bindings)
+
+### Include
+
+```cpp
+#include "smart_ref.hpp"
+```
+
+### With PyBind11
+
+```cpp
+#include "smart_ref/pybind11.hpp"
+```
+
+---
+
+## 📄 License
+
+MIT License.
+
+---
+
+## ⭐ Summary
+
+`smart_ref` is ideal if you need:
+
+* graph-like object management
+* intrusive weak/strong synchronization
+* Python interoperability with custom smart pointers
+* weak-to-shared revival
+* container-aware lifecycle cleanup
+* a minimal, customizable reference counting system
+
+It fills the gap between intrusive pointers, shared_ptr, weak_ptr, and Python binding holders — offering a highly flexible and lightweight alternative.
+
+
