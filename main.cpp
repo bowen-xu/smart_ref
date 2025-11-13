@@ -4,6 +4,7 @@
 #include <chrono>
 #include <set>
 #include <unordered_map>
+#include <map>
 #include <vector>
 
 using namespace smart_ref;
@@ -24,6 +25,108 @@ struct Node : public enable_shared_ref_from_this<Node, Graph>, enable_ref_holder
     int id;
     int value;
     Node(int v) : id(_id_counter++), value(v) {}
+};
+
+struct ConceptNetwork;
+struct Concept;
+struct ConceptHolder;
+using pConcept = shared_ref<Concept, ConceptHolder>;
+using wpConcept = weak_ref<Concept, ConceptHolder>;
+
+struct Concept : enable_ref_holder
+{
+    int id;
+    Concept(int id) : id(id) {}
+    Concept(std::vector<pConcept> comps)
+    {
+        std::vector<int> comp_ids;
+        for (auto &c : comps)
+        {
+            components.push_back(c);
+            comp_ids.push_back(c->id);
+        }
+        this->id = (int)(hashInts(comp_ids) % std::numeric_limits<int>::max());
+    }
+    std::vector<wpConcept> components;
+
+public:
+    static uint64_t hashInts(const std::vector<int> &arr)
+    {
+        uint64_t h = 1469598103934665603ULL; // offset basis
+        for (int v : arr)
+        {
+            h ^= (uint64_t)v;
+            h *= 1099511628211ULL; // prime
+        }
+        return h;
+    }
+};
+
+struct ConceptHolder
+{
+    std::unordered_map<int, wpConcept> holder_map;  // concept id -> concept weak pointer
+    std::unordered_map<void *, int> holder_map_rev; // handler -> concept id
+
+    static void hold_ref(void *self_, const pConcept &x)
+    {
+        auto &self = *static_cast<ConceptHolder *>(self_);
+        if (self.holder_map.find(x->id) != self.holder_map.end())
+            return; // already held
+        self.holder_map[x->id] = x;
+        self.holder_map_rev[x.handler] = x->id;
+    }
+
+    static void unhold_ref(void *self_, const wpConcept &w)
+    {
+        auto &self = *static_cast<ConceptHolder *>(self_);
+        auto it = self.holder_map_rev.find((void *)w.handler);
+        if (it == self.holder_map_rev.end())
+            throw std::runtime_error("ConceptHolder::unhold_ref: concept not found in holder");
+        auto id_it = self.holder_map.find(it->second);
+        if (id_it != self.holder_map.end())
+            self.holder_map.erase(id_it);
+        self.holder_map_rev.erase(it);
+    }
+
+    ~ConceptHolder()
+    {
+        for (auto &[_, wp] : holder_map)
+            wp.handler->holder = nullptr;
+    }
+};
+struct ConceptNetwork
+{
+    std::unordered_map<int, pConcept> concepts;
+    ConceptHolder holder;
+    auto new_concept(int id)
+    {
+        if (concepts.find(id) != concepts.end())
+            return concepts[id];
+        auto c = pConcept(new Concept(id));
+        c.set_holder(&holder);
+        concepts[id] = c;
+        return c;
+    }
+    auto new_concept(const std::vector<pConcept> &comps)
+    {
+        std::vector<int> comp_ids;
+        for (auto &c : comps)
+            comp_ids.push_back(c->id);
+        int id = (int)(Concept::hashInts(comp_ids) % std::numeric_limits<int>::max());
+        if (concepts.find(id) != concepts.end())
+            return concepts[id];
+        if (holder.holder_map.find(id) != holder.holder_map.end())
+        {
+            auto c = new Concept(comps);
+            auto wp = holder.holder_map[id];
+            return shared_ref<Concept, ConceptHolder>::revive(c, wp);
+        }
+        auto c = pConcept(new Concept(comps));
+        c.set_holder(&holder);
+        concepts[c->id] = c;
+        return c;
+    }
+    void del_concept(int id) { concepts.erase(id); }
 };
 
 void performance()
@@ -93,6 +196,28 @@ void performance()
     }
 }
 
+void concept_network_example()
+{
+
+    auto net = ConceptNetwork();
+    auto c1 = net.new_concept(1);
+    auto c2 = net.new_concept(2);
+    auto c3 = net.new_concept({c1, c2});
+    auto c4 = net.new_concept(3);
+    auto c5 = net.new_concept({c3, c4});
+    auto id_c3 = c3->id;
+    // c1.reset();
+    // c2.reset();
+    c3.reset();
+    c4.reset();
+    // c5.reset();
+    net.del_concept(id_c3);
+    fmt::print("Component 0 of c5: {}\n", (void *)c5->components[0].lock().get());
+    c3 = net.new_concept({c1, c2});
+    fmt::print("Recreated c3\n");
+    fmt::print("Component 0 of c5: {}\n", (void *)c5->components[0].lock().get());
+}
+
 int main()
 {
     auto g = Graph();
@@ -122,9 +247,10 @@ int main()
     auto n1w = weak_ref<Node>(n1);
     n1 = n2;
     auto n1r = shared_ref<Node>::revive(new Node(30), n1w);
-    if (n1w.lock())
+    if (bool(n1w.lock()))
         fmt::print("Locked node value: {}\n", n1w.lock()->value);
 
+    concept_network_example();
     performance();
     return 0;
 }
