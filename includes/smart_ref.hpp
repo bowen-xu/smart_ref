@@ -3,9 +3,12 @@
 #include <cstddef>
 #include <cstdint>
 #include <stdexcept>
+#include <type_traits>
 
 namespace smart_ref
 {
+    template <typename T, typename HolderPolicy = nullptr_t>
+    struct shared_ref;
 
     template <typename T, typename HolderPolicy = nullptr_t>
     struct weak_ref;
@@ -45,7 +48,7 @@ namespace smart_ref
         };
     } // namespace _
 
-    template <typename T, typename HolderPolicy = nullptr_t>
+    template <typename T, typename HolderPolicy>
     struct shared_ref
     {
     public:
@@ -220,10 +223,7 @@ namespace smart_ref
             return *this;
         }
 
-        ~weak_ref() 
-        {
-            _destroy_ref(); 
-        }
+        ~weak_ref() { _destroy_ref(); }
 
         void _destroy_ref()
         {

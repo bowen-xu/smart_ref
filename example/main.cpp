@@ -1,11 +1,13 @@
+
 #include <fmt/core.h>
-#include <memory>
-#include "smart_ref.hpp"
-#include <chrono>
+#include <cstdint>
 #include <set>
 #include <unordered_map>
-#include <map>
 #include <vector>
+#include <chrono>
+#include <iostream>
+#include <functional>
+#include "smart_ref.hpp"
 
 using namespace smart_ref;
 
@@ -65,7 +67,7 @@ public:
 struct ConceptHolder
 {
     std::unordered_map<int, wpConcept> holder_map;  // concept id -> concept weak pointer
-    std::unordered_map<void *, int> holder_map_rev; // handler -> concept id
+    std::unordered_map<size_t, int> holder_map_rev; // handler -> concept id
 
     static void hold_ref(void *self_, const pConcept &x)
     {
@@ -73,13 +75,13 @@ struct ConceptHolder
         if (self.holder_map.find(x->id) != self.holder_map.end())
             return; // already held
         self.holder_map[x->id] = x;
-        self.holder_map_rev[x.handler] = x->id;
+        self.holder_map_rev[(size_t)(x.handler)] = x->id;
     }
 
     static void unhold_ref(void *self_, const wpConcept &w)
     {
         auto &self = *static_cast<ConceptHolder *>(self_);
-        auto it = self.holder_map_rev.find((void *)w.handler);
+        auto it = self.holder_map_rev.find((size_t)(w.handler));
         if (it == self.holder_map_rev.end())
             throw std::runtime_error("ConceptHolder::unhold_ref: concept not found in holder");
         auto id_it = self.holder_map.find(it->second);
@@ -252,5 +254,11 @@ int main()
 
     concept_network_example();
     performance();
+
+    std::string s = "hello";
+    std::hash<std::string> hasher;
+
+    size_t h = hasher(s);
+    std::cout << h << std::endl;
     return 0;
 }

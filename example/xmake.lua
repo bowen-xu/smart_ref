@@ -1,18 +1,18 @@
 add_rules("mode.debug", "mode.release", "mode.releasedbg")
-set_languages("cxx20")
+set_languages("cxx23")
 
 
 project_root = path.join(os.scriptdir(), ".")
 local py_root = project_root
 
 add_requires("fmt")
-add_requires("boost", {configs = {program_options = true, container = true, stacktrace = true}})
-add_requires("openssl")
-add_requires("pybind11")
+add_requires("pybind11", {system = false})
 
+
+set_toolchains("llvm")
 
 includes = {
-    path.join(os.scriptdir(), "includes"),
+    path.join(os.scriptdir(), "../includes"),
 }
 
 srcs = table.join(
@@ -20,16 +20,17 @@ srcs = table.join(
 )
 
 target("main")
+    set_kind("binary")
     add_packages("fmt")
-    add_packages("boost")
-    add_packages("openssl")
-    set_kind("binary")    
     add_files(srcs)
     add_includedirs(
         includes
     )
 
+
     set_targetdir(project_root)
+    set_policy("build.c++.modules", true)
+
 
 srcs_py = table.join(
     "foo.cpp"
@@ -37,7 +38,7 @@ srcs_py = table.join(
 
 target("foo")
     add_defines("PYMODULE")
-    add_rules("python.library", {soabi = true})
+    add_rules("python.module")
     add_packages("pybind11")
 
     add_files(srcs_py)

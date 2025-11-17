@@ -1,1 +1,0 @@
-xmake f --toolchain=llvm

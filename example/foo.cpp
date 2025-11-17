@@ -1,8 +1,10 @@
 #include "smart_ref.hpp"
 #include "smart_ref/pybind11.hpp"
+#include <pybind11/pybind11.h>
 #include <iostream>
 
 namespace py = pybind11;
+
 struct Foo
 {
     int value;
@@ -30,7 +32,8 @@ PYBIND11_MODULE(foo, m)
         "create_foo",
         [](int v, bool cache_instance)
         {
-            if (cache_instance){
+            if (cache_instance)
+            {
                 foo_instances.emplace_back(new Foo(v));
                 return foo_instances.back();
             }
