@@ -12,6 +12,35 @@ It extends the concept of `std::shared_ptr` / `std::weak_ptr` with several uniqu
 
 ---
 
+## How to use with XMake?
+
+To fetch the repo,
+```
+xmake repo --add smart_ref https://github.com/bowen-xu/smart_ref.git v0.1
+```
+
+In `xmake.lua`,
+```lua
+add_repositories("smart_ref https://github.com/bowen-xu/smart_ref.git v0.1")
+add_requires("smart_ref")
+
+target("foo")
+    -- ...
+    add_packages("smart_ref")
+    -- ...
+```
+
+### For Developers
+
+To update the package,
+
+1. Create a new branch, named by the version
+2. In the new branch, run command `xmake package -o .`. A folder `packages` will be generate.
+3. Modify the `README.md` document, and change the instruction: `add_repositories("smart_ref https://github.com/bowen-xu/smart_ref.git <new-version>")`
+
+
+---
+
 ## 🔥 Key Features
 
 ### ✔ 1. Weak-to-Shared Revival
