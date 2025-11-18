@@ -100,6 +100,14 @@ namespace smart_ref
             }
         }
 
+        template <typename U>
+            requires std::is_convertible_v<U *, T *>
+        shared_ref(const shared_ref<U, HolderPolicy> &other, T *p) noexcept : ptr(p), handler(other.handler)
+        {
+            if (handler)
+                handler->strong++;
+        }
+
     private:
         shared_ref(T *p, _::ref_block<T> *h) : ptr(p), handler(h) {}
         shared_ref(_::ref_block<T> *h) : handler(h)
@@ -359,5 +367,39 @@ namespace smart_ref
     struct enable_ref_holder
     {
     };
+} // namespace smart_ref
 
+namespace smart_ref
+{
+    // reference: https://en.cppreference.com/w/cpp/memory/shared_ptr/pointer_cast.html
+
+    template <typename T, typename U, typename HolderPolicy>
+    shared_ref<T, HolderPolicy> static_pointer_cast(const shared_ref<U, HolderPolicy> &r) noexcept
+    {
+        auto *p = static_cast<typename shared_ref<T>::element_type *>(r.get());
+        return shared_ref<T, HolderPolicy>(r, p);
+    }
+
+    template <class T, class U>
+    shared_ref<T> dynamic_pointer_cast(const shared_ref<U> &r) noexcept
+    {
+        if (auto p = dynamic_cast<typename shared_ref<T>::element_type *>(r.get()))
+            return shared_ref<T>{r, p};
+        else
+            return shared_ref<T>{};
+    }
+
+    template <class T, class U>
+    shared_ref<T> const_pointer_cast(const shared_ref<U> &r) noexcept
+    {
+        auto p = const_cast<typename shared_ref<T>::element_type *>(r.get());
+        return shared_ref<T>{r, p};
+    }
+
+    template <class T, class U>
+    shared_ref<T> reinterpret_pointer_cast(const shared_ref<U> &r) noexcept
+    {
+        auto p = reinterpret_cast<typename shared_ref<T>::element_type *>(r.get());
+        return shared_ref<T>{r, p};
+    }
 } // namespace smart_ref
