@@ -52,6 +52,8 @@ namespace smart_ref
     struct shared_ref
     {
     public:
+        using element_type = T;
+
         T *ptr;
         _::ref_block<T> *handler;
 
@@ -192,6 +194,8 @@ namespace smart_ref
     template <typename T, typename HolderPolicy>
     struct weak_ref
     {
+        using element_type = T;
+
         _::ref_block<T> *handler = nullptr;
 
         weak_ref() : handler(nullptr) {}
