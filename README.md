@@ -14,20 +14,21 @@ It extends the concept of `std::shared_ptr` / `std::weak_ptr` with several uniqu
 
 ## How to use with XMake?
 
-To fetch the repo,
-```
-xmake repo --add smart_ref https://github.com/bowen-xu/smart_ref.git v0.1
-```
-
-In `xmake.lua`,
+An example usage:
 ```lua
-add_repositories("smart_ref https://github.com/bowen-xu/smart_ref.git v0.1")
+add_rules("mode.release", "mode.debug")
+set_languages("c++23")
+
+add_repositories("smart_ref git@github.com:bowen-xu/xrepo.git")
 add_requires("smart_ref")
 
-target("foo")
-    -- ...
+target("main")
+    set_kind("binary")
     add_packages("smart_ref")
-    -- ...
+
+    set_targetdir(".")
+    add_includedirs("src")
+    add_files("main.cpp")
 ```
 
 ### For Developers
