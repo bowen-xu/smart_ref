@@ -19,7 +19,7 @@ An example usage:
 add_rules("mode.release", "mode.debug")
 set_languages("c++23")
 
-add_repositories("smart_ref git@github.com:bowen-xu/xrepo.git")
+add_repositories("bx-xrepo git@github.com:bowen-xu/xrepo.git")
 add_requires("smart_ref")
 
 target("main")
@@ -36,8 +36,8 @@ target("main")
 To update the package,
 
 1. Create a new branch, named by the version
-2. In the new branch, run command `xmake package -o .`. A folder `packages` will be generate.
-3. Modify the `README.md` document, and change the instruction: `add_repositories("smart_ref https://github.com/bowen-xu/smart_ref.git <new-version>")`
+2. In the new branch, run command `xmake package -o .`. A folder `packages` will be generate. Modify the generated `xmake.lua` file if needed.
+3. Upload the package to `https://github.com/bowen-xu/xrepo.git")`
 
 
 ---
