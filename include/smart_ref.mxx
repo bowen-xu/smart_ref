@@ -25,14 +25,16 @@
  * SOFTWARE.
  */
 
-#pragma once
+module;
 
 #include <cstddef>
 #include <cstdint>
 #include <stdexcept>
 #include <type_traits>
 
-namespace smart_ref
+export module smart_ref;
+
+export namespace smart_ref
 {
     template <typename T, typename HolderPolicy = nullptr_t>
     struct shared_ref;
@@ -116,7 +118,8 @@ namespace smart_ref
 
         template <typename U>
         // requires std::is_convertible_v<U *, T *>
-        shared_ref(const shared_ref<U, HolderPolicy> &other, T *p) noexcept : ptr(p), handler(reinterpret_cast<handler_type *>(other.handler))
+        shared_ref(const shared_ref<U, HolderPolicy> &other, T *p) noexcept
+            : ptr(p), handler(reinterpret_cast<handler_type *>(other.handler))
         {
             if (handler)
                 handler->strong++;
@@ -399,7 +402,7 @@ namespace smart_ref
     };
 } // namespace smart_ref
 
-namespace std
+export namespace std
 {
     // reference: https://en.cppreference.com/w/cpp/memory/shared_ptr/pointer_cast.html
     template <typename T, typename U, typename HolderPolicy>
