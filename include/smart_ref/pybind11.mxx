@@ -31,6 +31,6 @@ module;
 // #include "../smart_ref.hpp"
 
 export module smart_ref.pybind11;
-import smart_ref;
+export import smart_ref;
 
 export PYBIND11_DECLARE_HOLDER_TYPE(T, smart_ref::shared_ref<T>);
