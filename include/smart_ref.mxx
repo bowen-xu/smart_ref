@@ -547,3 +547,15 @@ export namespace std
         return smart_ref::shared_ref<T>{r, p};
     }
 } // namespace std
+
+export namespace std
+{
+    template <typename T, typename H>
+    struct hash<smart_ref::shared_ref<T, H>>
+    {
+        size_t operator()(const smart_ref::shared_ref<T, H> &sha) const
+        {
+            return std::hash<T *>()(sha.get());
+        }
+    };
+} // namespace std
