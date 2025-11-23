@@ -25,16 +25,12 @@
  * SOFTWARE.
  */
 
-module;
-
 #include <cstddef>
 #include <cstdint>
 #include <stdexcept>
 #include <type_traits>
 
-export module smart_ref;
-
-export namespace smart_ref
+namespace smart_ref
 {
     template <typename T, typename HolderPolicy = nullptr_t>
     struct shared_ref;
@@ -403,7 +399,7 @@ export namespace smart_ref
 
 } // namespace smart_ref
 
-export namespace smart_ref
+namespace smart_ref
 {
     template <class _Tp>
     inline bool operator==(const shared_ref<_Tp> &__x, nullptr_t) noexcept
@@ -548,14 +544,11 @@ export namespace std
     }
 } // namespace std
 
-export namespace std
+namespace std
 {
     template <typename T, typename H>
     struct hash<smart_ref::shared_ref<T, H>>
     {
-        size_t operator()(const smart_ref::shared_ref<T, H> &sha) const
-        {
-            return std::hash<T *>()(sha.get());
-        }
+        size_t operator()(const smart_ref::shared_ref<T, H> &sha) const { return std::hash<T *>()(sha.get()); }
     };
 } // namespace std

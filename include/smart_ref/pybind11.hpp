@@ -25,12 +25,7 @@
  * SOFTWARE.
  */
 
-module;
-
 #include <pybind11/pybind11.h>
-// #include "../smart_ref.hpp"
+#include "../smart_ref.hpp"
 
-export module smart_ref.pybind11;
-export import smart_ref;
-
-export PYBIND11_DECLARE_HOLDER_TYPE(T, smart_ref::shared_ref<T>);
+PYBIND11_DECLARE_HOLDER_TYPE(T, smart_ref::shared_ref<T>);
