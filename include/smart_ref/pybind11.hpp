@@ -25,6 +25,8 @@
  * SOFTWARE.
  */
 
+#pragma once
+
 #include <pybind11/pybind11.h>
 #include "../smart_ref.hpp"
 

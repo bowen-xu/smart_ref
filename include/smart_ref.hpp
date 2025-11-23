@@ -25,6 +25,8 @@
  * SOFTWARE.
  */
 
+#pragma once
+
 #include <cstddef>
 #include <cstdint>
 #include <stdexcept>
@@ -510,7 +512,7 @@ namespace smart_ref
 
 } // namespace smart_ref
 
-export namespace std
+namespace std
 {
     // reference: https://en.cppreference.com/w/cpp/memory/shared_ptr/pointer_cast.html
     template <typename T, typename U, typename HolderPolicy>
