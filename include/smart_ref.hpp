@@ -94,6 +94,7 @@ namespace smart_ref
     public:
         using element_type = T;
         using handler_type = _::ref_block<T>;
+        using holder_type = HolderPolicy;
 
         T *ptr;
         handler_type *handler;

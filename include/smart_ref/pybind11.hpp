@@ -31,3 +31,8 @@
 #include "../smart_ref.hpp"
 
 PYBIND11_DECLARE_HOLDER_TYPE(T, smart_ref::shared_ref<T>);
+
+#define __PYBIND11_SMART_REF_HOLDER_TYPE_NAME(T, H) \
+    smart_ref::shared_ref<T, H::holder_type>
+#define DECLARE_PYBIND11_SMART_REF_HOLDER(H)                                                                           \
+    PYBIND11_DECLARE_HOLDER_TYPE(T, __PYBIND11_SMART_REF_HOLDER_TYPE_NAME(T, H));
