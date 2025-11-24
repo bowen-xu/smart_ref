@@ -404,109 +404,109 @@ namespace smart_ref
 
 namespace smart_ref
 {
-    template <class _Tp>
-    inline bool operator==(const shared_ref<_Tp> &__x, nullptr_t) noexcept
+    template <class _Tp, class H>
+    inline bool operator==(const shared_ref<_Tp, H> &__x, nullptr_t) noexcept
     {
         return !__x;
     }
 
-    template <class _Tp>
-    inline bool operator==(nullptr_t, const shared_ref<_Tp> &__x) noexcept
+    template <class _Tp, class H>
+    inline bool operator==(nullptr_t, const shared_ref<_Tp, H> &__x) noexcept
     {
         return !__x;
     }
 
-    template <class _Tp>
-    inline bool operator!=(const shared_ref<_Tp> &__x, nullptr_t) noexcept
+    template <class _Tp, class H>
+    inline bool operator!=(const shared_ref<_Tp, H> &__x, nullptr_t) noexcept
     {
         return static_cast<bool>(__x);
     }
 
-    template <class _Tp>
-    inline bool operator!=(nullptr_t, const shared_ref<_Tp> &__x) noexcept
+    template <class _Tp, class H>
+    inline bool operator!=(nullptr_t, const shared_ref<_Tp, H> &__x) noexcept
     {
         return static_cast<bool>(__x);
     }
 
-    template <class _Tp>
-    inline bool operator<(const shared_ref<_Tp> &__x, nullptr_t) noexcept
+    template <class _Tp, class H>
+    inline bool operator<(const shared_ref<_Tp, H> &__x, nullptr_t) noexcept
     {
-        return less<typename shared_ref<_Tp>::element_type *>()(__x.get(), nullptr);
+        return less<typename shared_ref<_Tp, H>::element_type *>()(__x.get(), nullptr);
     }
 
-    template <class _Tp>
-    inline bool operator<(nullptr_t, const shared_ref<_Tp> &__x) noexcept
+    template <class _Tp, class H>
+    inline bool operator<(nullptr_t, const shared_ref<_Tp, H> &__x) noexcept
     {
-        return less<typename shared_ref<_Tp>::element_type *>()(nullptr, __x.get());
+        return less<typename shared_ref<_Tp, H>::element_type *>()(nullptr, __x.get());
     }
 
-    template <class _Tp>
-    inline bool operator>(const shared_ref<_Tp> &__x, nullptr_t) noexcept
+    template <class _Tp, class H>
+    inline bool operator>(const shared_ref<_Tp, H> &__x, nullptr_t) noexcept
     {
         return nullptr < __x;
     }
 
-    template <class _Tp>
-    inline bool operator>(nullptr_t, const shared_ref<_Tp> &__x) noexcept
+    template <class _Tp, class H>
+    inline bool operator>(nullptr_t, const shared_ref<_Tp, H> &__x) noexcept
     {
         return __x < nullptr;
     }
 
-    template <class _Tp>
-    inline bool operator<=(const shared_ref<_Tp> &__x, nullptr_t) noexcept
+    template <class _Tp, class H>
+    inline bool operator<=(const shared_ref<_Tp, H> &__x, nullptr_t) noexcept
     {
         return !(nullptr < __x);
     }
 
-    template <class _Tp>
-    inline bool operator<=(nullptr_t, const shared_ref<_Tp> &__x) noexcept
+    template <class _Tp, class H>
+    inline bool operator<=(nullptr_t, const shared_ref<_Tp, H> &__x) noexcept
     {
         return !(__x < nullptr);
     }
 
-    template <class _Tp>
-    inline bool operator>=(const shared_ref<_Tp> &__x, nullptr_t) noexcept
+    template <class _Tp, class H>
+    inline bool operator>=(const shared_ref<_Tp, H> &__x, nullptr_t) noexcept
     {
         return !(__x < nullptr);
     }
 
-    template <class _Tp>
-    inline bool operator>=(nullptr_t, const shared_ref<_Tp> &__x) noexcept
+    template <class _Tp, class H>
+    inline bool operator>=(nullptr_t, const shared_ref<_Tp, H> &__x) noexcept
     {
         return !(nullptr < __x);
     }
 
-    template <class _Tp, class _Up>
-    inline bool operator==(const shared_ref<_Tp> &__x, const shared_ref<_Up> &__y) noexcept
+    template <class _Tp, class _Up, class TH, class UH>
+    inline bool operator==(const shared_ref<_Tp, TH> &__x, const shared_ref<_Up, UH> &__y) noexcept
     {
         return __x.get() == __y.get();
     }
 
-    template <class _Tp, class _Up>
-    inline bool operator!=(const shared_ref<_Tp> &__x, const shared_ref<_Up> &__y) noexcept
+    template <class _Tp, class _Up, class TH, class UH>
+    inline bool operator!=(const shared_ref<_Tp, TH> &__x, const shared_ref<_Up, UH> &__y) noexcept
     {
         return !(__x == __y);
     }
 
-    template <class _Tp, class _Up>
-    inline bool operator<(const shared_ref<_Tp> &__x, const shared_ref<_Up> &__y) noexcept
+    template <class _Tp, class _Up, class TH, class UH>
+    inline bool operator<(const shared_ref<_Tp, TH> &__x, const shared_ref<_Up, UH> &__y) noexcept
     {
         return __x.get() < __y.get();
     }
-    template <class _Tp, class _Up>
-    inline bool operator>(const shared_ref<_Tp> &__x, const shared_ref<_Up> &__y) noexcept
+    template <class _Tp, class _Up, class TH, class UH>
+    inline bool operator>(const shared_ref<_Tp, TH> &__x, const shared_ref<_Up, UH> &__y) noexcept
     {
         return __y < __x;
     }
 
-    template <class _Tp, class _Up>
-    inline bool operator<=(const shared_ref<_Tp> &__x, const shared_ref<_Up> &__y) noexcept
+    template <class _Tp, class _Up, class TH, class UH>
+    inline bool operator<=(const shared_ref<_Tp, TH> &__x, const shared_ref<_Up, UH> &__y) noexcept
     {
         return !(__y < __x);
     }
 
-    template <class _Tp, class _Up>
-    inline bool operator>=(const shared_ref<_Tp> &__x, const shared_ref<_Up> &__y) noexcept
+    template <class _Tp, class _Up, class TH, class UH>
+    inline bool operator>=(const shared_ref<_Tp, TH> &__x, const shared_ref<_Up, UH> &__y) noexcept
     {
         return !(__x < __y);
     }
