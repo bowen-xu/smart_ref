@@ -85,6 +85,8 @@ namespace smart_ref
                 else
                     static_assert(false, "T must inherit from enable_ref_holder to use reset_holder");
             }
+
+            bool empty() const { return ptr == nullptr; }
         };
     } // namespace _
 
