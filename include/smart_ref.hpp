@@ -348,7 +348,7 @@ namespace smart_ref
             return shared_ref<T, HolderPolicy>(handler);
         }
 
-        // bool operator<(const weak_ref<T, HolderPolicy> &other) const { return handler < other.handler; }
+        bool expired() const { return handler == nullptr || handler->strong == 0; }
 
     private:
         void _move_ref(const weak_ref<T, HolderPolicy> &other)
