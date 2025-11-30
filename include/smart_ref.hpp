@@ -525,27 +525,27 @@ namespace std
         return smart_ref::shared_ref<T, HolderPolicy>(r, p);
     }
 
-    template <class T, class U>
-    smart_ref::shared_ref<T> dynamic_pointer_cast(const smart_ref::shared_ref<U> &r) noexcept
+    template <class T, class U, typename HolderPolicy>
+    smart_ref::shared_ref<T, HolderPolicy> dynamic_pointer_cast(const smart_ref::shared_ref<U, HolderPolicy> &r) noexcept
     {
-        if (auto p = dynamic_cast<typename smart_ref::shared_ref<T>::element_type *>(r.get()))
-            return smart_ref::shared_ref<T>{r, p};
+        if (auto p = dynamic_cast<typename smart_ref::shared_ref<T, HolderPolicy>::element_type *>(r.get()))
+            return smart_ref::shared_ref<T, HolderPolicy>{r, p};
         else
-            return smart_ref::shared_ref<T>{};
+            return smart_ref::shared_ref<T, HolderPolicy>{};
     }
 
-    template <class T, class U>
-    smart_ref::shared_ref<T> const_pointer_cast(const smart_ref::shared_ref<U> &r) noexcept
+    template <class T, class U, typename HolderPolicy>
+    smart_ref::shared_ref<T, HolderPolicy> const_pointer_cast(const smart_ref::shared_ref<U, HolderPolicy> &r) noexcept
     {
-        auto p = const_cast<typename smart_ref::shared_ref<T>::element_type *>(r.get());
-        return smart_ref::shared_ref<T>{r, p};
+        auto p = const_cast<typename smart_ref::shared_ref<T, HolderPolicy>::element_type *>(r.get());
+        return smart_ref::shared_ref<T, HolderPolicy>{r, p};
     }
 
-    template <class T, class U>
-    smart_ref::shared_ref<T> reinterpret_pointer_cast(const smart_ref::shared_ref<U> &r) noexcept
+    template <class T, class U, typename HolderPolicy>
+    smart_ref::shared_ref<T, HolderPolicy> reinterpret_pointer_cast(const smart_ref::shared_ref<U, HolderPolicy> &r) noexcept
     {
-        auto p = reinterpret_cast<typename smart_ref::shared_ref<T>::element_type *>(r.get());
-        return smart_ref::shared_ref<T>{r, p};
+        auto p = reinterpret_cast<typename smart_ref::shared_ref<T, HolderPolicy>::element_type *>(r.get());
+        return smart_ref::shared_ref<T, HolderPolicy>{r, p};
     }
 } // namespace std
 
