@@ -106,12 +106,18 @@ namespace smart_ref
 
         shared_ref(T *p)
         {
+            if (p == nullptr)
+            {
+                handler = nullptr;
+                ptr = nullptr;
+                return;
+            }
             handler = new handler_type();
             handler->strong = 1;
             handler->ptr = p;
             ptr = p;
 
-            if constexpr (std::is_base_of_v<enable_shared_ref_from_this<T>, T>)
+            if constexpr (std::is_base_of_v<enable_shared_ref_from_this<T, HolderPolicy>, T>)
             {
                 p->_weak_self = *this;
             }
@@ -213,6 +219,12 @@ namespace smart_ref
             return *this;
         }
 
+        shared_ref &operator=(nullptr_t)
+        {
+            this->reset();
+            return *this;
+        }
+
         static shared_ref revive(T *p, const weak_ref<T, HolderPolicy> &other) { return revive(p, other.handler); }
 
         static shared_ref revive(T *p, handler_type *other)
@@ -227,14 +239,9 @@ namespace smart_ref
 
         void reset()
         {
-            if (handler)
-            {
-                handler->strong--;
-                if (handler->strong == 0 && handler->weak == 0)
-                    delete handler;
-                handler = nullptr;
-            }
-            ptr = nullptr;
+            this->_destroy_ref();
+            this->handler = nullptr;
+            this->ptr = nullptr;
         }
 
         auto set_holder(void *holder)
@@ -345,6 +352,9 @@ namespace smart_ref
         {
             if (handler == nullptr)
                 return nullptr;
+            // Do not resurrect expired/cleared objects; avoid bumping strong when ptr is gone.
+            if (handler->strong == 0 || handler->ptr == nullptr)
+                return nullptr;
             return shared_ref<T, HolderPolicy>(handler);
         }
 
@@ -379,17 +389,12 @@ namespace smart_ref
             {
                 if (this->_weak_self.handler == nullptr)
                     throw std::runtime_error("enable_shared_ref_from_this: object is no longer owned by a shared_ref");
-                shared_ref<T> s;
-                s.ptr = p;
-                s.handler = _weak_self.handler;
-                if (s.handler)
-                    s.handler->strong++;
-                return s;
+                return p;
             }
             throw std::runtime_error("enable_shared_ref_from_this: object is no longer owned by a shared_ref");
         }
 
-        weak_ref<T> weak_from_this() const noexcept { return _weak_self; }
+        weak_ref<T, HolderPolicy> weak_from_this() const noexcept { return _weak_self; }
 
         ~enable_shared_ref_from_this()
         {
@@ -526,7 +531,8 @@ namespace std
     }
 
     template <class T, class U, typename HolderPolicy>
-    smart_ref::shared_ref<T, HolderPolicy> dynamic_pointer_cast(const smart_ref::shared_ref<U, HolderPolicy> &r) noexcept
+    smart_ref::shared_ref<T, HolderPolicy>
+    dynamic_pointer_cast(const smart_ref::shared_ref<U, HolderPolicy> &r) noexcept
     {
         if (auto p = dynamic_cast<typename smart_ref::shared_ref<T, HolderPolicy>::element_type *>(r.get()))
             return smart_ref::shared_ref<T, HolderPolicy>{r, p};
@@ -542,7 +548,8 @@ namespace std
     }
 
     template <class T, class U, typename HolderPolicy>
-    smart_ref::shared_ref<T, HolderPolicy> reinterpret_pointer_cast(const smart_ref::shared_ref<U, HolderPolicy> &r) noexcept
+    smart_ref::shared_ref<T, HolderPolicy>
+    reinterpret_pointer_cast(const smart_ref::shared_ref<U, HolderPolicy> &r) noexcept
     {
         auto p = reinterpret_cast<typename smart_ref::shared_ref<T, HolderPolicy>::element_type *>(r.get());
         return smart_ref::shared_ref<T, HolderPolicy>{r, p};
