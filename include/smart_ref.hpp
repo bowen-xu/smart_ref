@@ -152,7 +152,7 @@ namespace smart_ref
         ~shared_ref() { this->_destroy_ref(); }
 
     private:
-        void _destroy_ref()
+        static void _releasea_handler(handler_type *handler)
         {
             if (handler)
             {
@@ -164,11 +164,11 @@ namespace smart_ref
                         if constexpr (std::is_base_of_v<enable_ref_holder, T> &&
                                       !std::is_same_v<HolderPolicy, nullptr_t>)
                         {
-                            if (this->handler->holder)
+                            if (handler->holder)
                             {
                                 auto holder = handler->holder;
                                 handler->holder = nullptr;
-                                HolderPolicy::unhold_ref(holder, static_cast<void *>(this->handler));
+                                HolderPolicy::unhold_ref(holder, static_cast<void *>(handler));
                             }
                         }
                         delete handler;
@@ -181,29 +181,21 @@ namespace smart_ref
                 }
             }
         }
+        void _destroy_ref() { this->_releasea_handler(this->handler); }
 
     private:
         void _move_shared(const shared_ref<T, HolderPolicy> &other)
         {
-            if (this->handler)
-            {
-                this->handler->strong--;
-                if (this->handler->strong == 0)
-                {
-                    if (this->handler->weak == 0)
-                        delete this->handler;
-                    else
-                    {
-                        delete this->handler->ptr;
-                        this->handler->ptr = nullptr;
-                    }
-                }
-            }
+            if (this->handler == other.handler)
+                return;
+            auto old_handler = this->handler;
 
-            handler = other.handler;
-            ptr = other.ptr;
-            if (handler)
-                handler->strong++;
+            this->handler = other.handler;
+            this->ptr = other.ptr;
+            if (this->handler)
+                this->handler->strong++;
+
+            this->_releasea_handler(old_handler);
         }
 
     public:
@@ -225,12 +217,17 @@ namespace smart_ref
             return *this;
         }
 
-        static shared_ref revive(T *p, const weak_ref<T, HolderPolicy> &other) { return revive(p, other.handler); }
+        static shared_ref revive(T *p, const weak_ref<T, HolderPolicy> &other)
+        {
+            if (other.handler == nullptr)
+                throw std::runtime_error("bad weak reference");
+            if (other.handler->strong > 0)
+                throw std::runtime_error("revive a living reference");
+            return revive(p, other.handler);
+        }
 
         static shared_ref revive(T *p, handler_type *other)
         {
-            if (other == nullptr || other->strong > 0)
-                throw std::runtime_error("bad weak reference");
             shared_ref self{p, other};
             self.handler->strong++;
             self.handler->ptr = p;

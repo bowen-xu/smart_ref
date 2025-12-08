@@ -47,6 +47,21 @@ TEST(SmartRefBasic, CopyIncrementsStrong)
     EXPECT_EQ(p1.handler->strong, 1);
 }
 
+TEST(SmartRefBasic, SelfAssignmentDoesNotChangeCount)
+{
+    auto p1 = shared_ref<Obj, TestHolderPolicy>(new Obj(1));
+    {
+        weak_ref<Obj, TestHolderPolicy> w1 = p1;
+        p1 = p1;
+        ASSERT_EQ(p1.handler->strong, 1);
+        EXPECT_NE(p1.handler->ptr, nullptr);
+    }
+
+    p1 = p1;
+    ASSERT_EQ(p1.handler->strong, 1);
+    EXPECT_NE(p1.handler->ptr, nullptr);
+}
+
 TEST(SmartRefBasic, CopyNullptrRef)
 {
     auto p1 = shared_ref<Obj, TestHolderPolicy>(nullptr);
@@ -123,6 +138,26 @@ TEST(SmartRefRevive, ReviveWorks)
     EXPECT_EQ(handler->strong, 1);
 }
 
+// TEST(SmartRef, WeakRevive)
+// {
+//     using Ref = smart_ref::shared_ref<Obj, TestHolderPolicy>;
+//     using WRef = smart_ref::weak_ref<Obj, TestHolderPolicy>;
+
+//     TestHolderPolicy holder;
+//     Ref r(new Obj(1));
+//     r.set_holder(&holder);
+
+//     WRef w = r;
+//     EXPECT_FALSE(w.expired());
+
+//     r = nullptr; // strong -> 0, weak > 0, ptr 被 delete 并设为 nullptr
+//     EXPECT_TRUE(w.expired());
+
+//     // revives
+//     Ref r2 = Ref::revive(new Obj(2), w.handler);
+//     EXPECT_EQ(r2->value, 2);
+// }
+
 // ----------------------
 // 5. holder (TestHolderPolicy)
 // ----------------------
@@ -149,6 +184,29 @@ TEST(HolderPolicy, UnholdCalledWhenAllRefsReleased)
     }
 
     EXPECT_TRUE(holder.held_handlers.empty());
+}
+
+TEST(SharedRefHolderPolicy, MoveAssignmentMustUnholdHandler)
+{
+    using Ref = shared_ref<Obj, TestHolderPolicy>;
+
+    TestHolderPolicy holder;
+
+    void *handler_addr = nullptr;
+
+    Ref a(new Obj(42));
+    a.set_holder(&holder);
+
+    handler_addr = a.handler;
+    ASSERT_NE(handler_addr, nullptr);
+    EXPECT_TRUE(holder.holds(handler_addr)) << "Holder should track handler after set_holder";
+
+    Ref b = nullptr;
+    a = b;
+
+    // 到这里，handler 应该已经被 unhold
+    EXPECT_FALSE(holder.holds(handler_addr))
+        << "Handler must be unheld when last shared_ref is released via assignment";
 }
 
 // ----------------------
