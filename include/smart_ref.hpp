@@ -63,28 +63,24 @@ namespace smart_ref
         {
         };
 
-        template <typename T>
-        struct ref_block : std::conditional_t<std::is_base_of_v<enable_ref_holder, T>, holder_base, empty_base>
+        struct ref_block_base
         {
-            // T *ptr = nullptr;
             void *ptr = nullptr;
             uint32_t strong = 0;
             uint32_t weak = 0;
+        };
 
-            // void *holder = nullptr;
-
+        template <bool enable_holder = true>
+        struct ref_block : ref_block_base, std::conditional_t<enable_holder, holder_base, empty_base>
+        {
+            // using holder_enabled = enable_holder;
             ref_block() = default;
-
             ~ref_block() {}
 
             void reset_holder()
             {
-
-                // this->holder = nullptr;
-                if constexpr (std::is_base_of_v<enable_ref_holder, T>)
-                {
+                if constexpr (enable_holder)
                     this->holder = nullptr;
-                }
                 else
                     static_assert(false, "T must inherit from enable_ref_holder to use reset_holder");
             }
@@ -98,8 +94,7 @@ namespace smart_ref
     {
     public:
         using element_type = T;
-        using handler_type = _::ref_block<T>;
-        // using handler_type = _::ref_block;
+        using handler_type = _::ref_block<true>;
         using holder_type = HolderPolicy;
 
         T *ptr;
@@ -129,12 +124,9 @@ namespace smart_ref
 
     private:
         template <typename U>
-        requires((std::is_base_of_v<enable_ref_holder, T> && std::is_base_of_v<enable_ref_holder, U>) ||
-                 (!std::is_base_of_v<enable_ref_holder, T> && !std::is_base_of_v<enable_ref_holder, U>))
-        shared_ref(const shared_ref<U, HolderPolicy> &other, T *p) noexcept
-            : ptr(p), handler(reinterpret_cast<handler_type *>(other.handler))
-            // : ptr(p), handler(other.handler)
-
+            requires((std::is_base_of_v<enable_ref_holder, T> && std::is_base_of_v<enable_ref_holder, U>) ||
+                     (!std::is_base_of_v<enable_ref_holder, T> && !std::is_base_of_v<enable_ref_holder, U>))
+        shared_ref(const shared_ref<U, HolderPolicy> &other, T *p) noexcept : ptr(p), handler(other.handler)
         {
             // assume ptr==nullptr && handler==nullptr, or handler!=nullptr && ptr==handler->ptr
             if (handler && ptr)
@@ -158,7 +150,12 @@ namespace smart_ref
             }
         }
 
-        shared_ref(T *p, handler_type *h) : ptr(p), handler(h) {} /* only called by shared_ref::revive */
+        shared_ref(T *p, handler_type *h) : ptr(p), handler(h) /* only called by shared_ref::revive */
+        {
+            // assume h != nullptr && h->stong == 0 && h->ptr == nullptr
+            this->handler->strong = 1;
+            this->handler->ptr = p;
+        }
 
     public:
         shared_ref(const shared_ref &other) : shared_ref() { this->_copy_shared(other); }
@@ -189,9 +186,8 @@ namespace smart_ref
                 {
                     if (handler->weak == 0)
                     {
-                        if constexpr (std::is_base_of_v<enable_ref_holder, T> && !std::is_same_v<HolderPolicy,
-                        nullptr_t>)
-                        // if constexpr (!std::is_same_v<HolderPolicy, nullptr_t>)
+                        if constexpr (std::is_same_v<handler_type, _::ref_block<true>> &&
+                                      !std::is_same_v<HolderPolicy, nullptr_t>)
                         {
                             if (handler->holder)
                             {
@@ -247,12 +243,9 @@ namespace smart_ref
              * 2. other != nullptr
              * 3. other->ptr == nullptr
              */
-            if (p == nullptr || other == nullptr || other->ptr != nullptr)
+            if (p == nullptr || other == nullptr || other->ptr != nullptr || other->strong > 0)
                 throw std::runtime_error("Cannot revive due to invalid parameters");
-            shared_ref self{p, other};
-            self.handler->strong++;
-            self.handler->ptr = p;
-            return self;
+            return shared_ref{p, other};
         }
 
         void reset()
@@ -298,7 +291,7 @@ namespace smart_ref
     struct weak_ref
     {
         using element_type = T;
-        using handler_type = _::ref_block<T>;
+        using handler_type = _::ref_block<true>;
 
         handler_type *handler;
 
@@ -315,11 +308,15 @@ namespace smart_ref
         }
         weak_ref &operator=(const shared_ref<T, HolderPolicy> &other)
         {
+            if (this->handler == other.handler)
+                return *this;
             this->_copy_ref(other);
             return *this;
         }
         weak_ref &operator=(const weak_ref<T, HolderPolicy> &other)
         {
+            if (this->handler == other.handler)
+                return *this;
             this->_copy_ref(other);
             return *this;
         }
@@ -381,16 +378,14 @@ namespace smart_ref
     private:
         void _copy_ref(const weak_ref<T, HolderPolicy> &other)
         {
-            if (this->handler == other.handler)
-                return;
+
             handler = other.handler;
             if (handler)
                 handler->weak++;
         }
         void _copy_ref(const shared_ref<T, HolderPolicy> &other)
         {
-            if (this->handler == other.handler)
-                return;
+
             handler = other.handler;
             if (handler)
                 handler->weak++;
