@@ -43,9 +43,9 @@ namespace smart_ref
     template <typename T, typename HolderPolicy = nullptr_t>
     struct shared_ref;
 
-    // struct enable_ref_holder
-    // {
-    // };
+    struct enable_ref_holder
+    {
+    };
 
     template <typename T, typename HolderPolicy = nullptr_t>
     struct weak_ref;
@@ -55,41 +55,38 @@ namespace smart_ref
 
     namespace _
     {
-        // struct holder_base
-        // {
-        //     void *holder = nullptr;
-        // };
-        // struct empty_base
-        // {
-        // };
+        struct holder_base
+        {
+            void *holder = nullptr;
+        };
+        struct empty_base
+        {
+        };
 
-        // template <typename T>
-        struct ref_block //: std::conditional_t<std::is_base_of_v<enable_ref_holder, T>, holder_base, empty_base>
+        template <typename T>
+        struct ref_block : std::conditional_t<std::is_base_of_v<enable_ref_holder, T>, holder_base, empty_base>
         {
             // T *ptr = nullptr;
             void *ptr = nullptr;
             uint32_t strong = 0;
             uint32_t weak = 0;
 
-            void *holder = nullptr;
+            // void *holder = nullptr;
 
             ref_block() = default;
 
-            ~ref_block()
-            {
-                //  LOGD << std::format("Destory: {}", (void *)this);
-            }
+            ~ref_block() {}
 
             void reset_holder()
             {
 
-                this->holder = nullptr;
-                // if constexpr (std::is_base_of_v<enable_ref_holder, T>)
-                // {
-                //     this->holder = nullptr;
-                // }
-                // else
-                //     static_assert(false, "T must inherit from enable_ref_holder to use reset_holder");
+                // this->holder = nullptr;
+                if constexpr (std::is_base_of_v<enable_ref_holder, T>)
+                {
+                    this->holder = nullptr;
+                }
+                else
+                    static_assert(false, "T must inherit from enable_ref_holder to use reset_holder");
             }
 
             bool empty() const { return ptr == nullptr; }
@@ -101,8 +98,8 @@ namespace smart_ref
     {
     public:
         using element_type = T;
-        // using handler_type = _::ref_block<T>;
-        using handler_type = _::ref_block;
+        using handler_type = _::ref_block<T>;
+        // using handler_type = _::ref_block;
         using holder_type = HolderPolicy;
 
         T *ptr;
@@ -132,11 +129,11 @@ namespace smart_ref
 
     private:
         template <typename U>
-        // requires((std::is_base_of_v<enable_ref_holder, T> && std::is_base_of_v<enable_ref_holder, U>) ||
-        //          (!std::is_base_of_v<enable_ref_holder, T> && !std::is_base_of_v<enable_ref_holder, U>))
+        requires((std::is_base_of_v<enable_ref_holder, T> && std::is_base_of_v<enable_ref_holder, U>) ||
+                 (!std::is_base_of_v<enable_ref_holder, T> && !std::is_base_of_v<enable_ref_holder, U>))
         shared_ref(const shared_ref<U, HolderPolicy> &other, T *p) noexcept
-            // : ptr(p), handler(reinterpret_cast<handler_type *>(other.handler))
-            : ptr(p), handler(other.handler)
+            : ptr(p), handler(reinterpret_cast<handler_type *>(other.handler))
+            // : ptr(p), handler(other.handler)
 
         {
             // assume ptr==nullptr && handler==nullptr, or handler!=nullptr && ptr==handler->ptr
@@ -192,9 +189,9 @@ namespace smart_ref
                 {
                     if (handler->weak == 0)
                     {
-                        // if constexpr (std::is_base_of_v<enable_ref_holder, T> && !std::is_same_v<HolderPolicy,
-                        // nullptr_t>)
-                        if constexpr (!std::is_same_v<HolderPolicy, nullptr_t>)
+                        if constexpr (std::is_base_of_v<enable_ref_holder, T> && !std::is_same_v<HolderPolicy,
+                        nullptr_t>)
+                        // if constexpr (!std::is_same_v<HolderPolicy, nullptr_t>)
                         {
                             if (handler->holder)
                             {
@@ -301,7 +298,7 @@ namespace smart_ref
     struct weak_ref
     {
         using element_type = T;
-        using handler_type = _::ref_block;
+        using handler_type = _::ref_block<T>;
 
         handler_type *handler;
 

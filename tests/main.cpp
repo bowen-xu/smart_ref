@@ -7,7 +7,7 @@
 
 using namespace smart_ref;
 
-struct Obj
+struct Obj : enable_ref_holder
 {
     int value;
     Obj(int v) : value(v) {}
