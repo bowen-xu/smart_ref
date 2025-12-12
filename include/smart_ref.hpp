@@ -48,20 +48,6 @@ namespace smart_ref
     struct enable_shared_ref_from_this;
 
 } // namespace smart_ref
-namespace std
-{
-    template <typename T, typename U, typename HolderPolicy>
-    smart_ref::shared_ref<T, HolderPolicy>
-    static_pointer_cast(const smart_ref::shared_ref<U, HolderPolicy> &r) noexcept;
-    template <typename T, typename U, typename HolderPolicy>
-    smart_ref::shared_ref<T, HolderPolicy>
-    dynamic_pointer_cast(const smart_ref::shared_ref<U, HolderPolicy> &r) noexcept;
-    template <class T, class U, typename HolderPolicy>
-    smart_ref::shared_ref<T, HolderPolicy> const_pointer_cast(const smart_ref::shared_ref<U, HolderPolicy> &r) noexcept;
-    template <class T, class U, typename HolderPolicy>
-    smart_ref::shared_ref<T, HolderPolicy>
-    reinterpret_pointer_cast(const smart_ref::shared_ref<U, HolderPolicy> &r) noexcept;
-} // namespace std
 
 /* Implementation of Smart Reference */
 namespace smart_ref
@@ -142,20 +128,22 @@ namespace smart_ref
 
         ~shared_ref() { this->_destroy_ref(); }
 
-    private:
+    public:
         template <typename U>
             requires((std::is_base_of_v<enable_ref_holder, T> && std::is_base_of_v<enable_ref_holder, U>) ||
                      (!std::is_base_of_v<enable_ref_holder, T> && !std::is_base_of_v<enable_ref_holder, U>))
         // Aliasing constructor used by pointer-cast helpers; keeps same control block.
         shared_ref(const shared_ref<U, HolderPolicy> &other, T *p) noexcept
             : ptr(p), handler(other.handler) /* only called by std::static_pointer_cast, std::dynamic_pointer_cast,
-                                                std::reinterpret_pointer_cast, std::const_pointer_cast */
+                                              * std::reinterpret_pointer_cast, std::const_pointer_cast */
         {
+            /* Note: this method should be set public, so that pybind11 can use it to cast derived types. */
             // assume ptr==nullptr && handler==nullptr, or handler!=nullptr && ptr==handler->ptr
             if (handler && ptr)
                 handler->strong++;
         }
 
+    private:
         // Construct from control block when promoted from weak_ref::lock.
         shared_ref(handler_type *h) /* only called by weak_ref::lock() */
         {
@@ -298,18 +286,6 @@ namespace smart_ref
         operator bool() const { return ptr != nullptr; }
 
         friend class weak_ref<T, HolderPolicy>;
-        template <typename _T, typename _U, typename _HolderPolicy>
-        friend smart_ref::shared_ref<_T, _HolderPolicy>
-        std::static_pointer_cast(const smart_ref::shared_ref<_U, _HolderPolicy> &r) noexcept;
-        template <typename _T, typename _U, typename _HolderPolicy>
-        friend smart_ref::shared_ref<_T, _HolderPolicy>
-        std::dynamic_pointer_cast(const smart_ref::shared_ref<_U, _HolderPolicy> &r) noexcept;
-        template <class _T, class _U, typename _HolderPolicy>
-        friend smart_ref::shared_ref<_T, _HolderPolicy>
-        std::const_pointer_cast(const smart_ref::shared_ref<_U, _HolderPolicy> &r) noexcept;
-        template <class _T, class _U, typename _HolderPolicy>
-        friend smart_ref::shared_ref<_T, _HolderPolicy>
-        std::reinterpret_pointer_cast(const smart_ref::shared_ref<_U, _HolderPolicy> &r) noexcept;
     };
 
     template <typename T, typename HolderPolicy>
